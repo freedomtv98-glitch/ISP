@@ -1,0 +1,177 @@
+# ISP Network Monitoring Configuration
+
+# Global Settings
+global:
+  app_name: "ISP Network Monitor"
+  version: "1.0.0"
+  environment: "production"
+  debug: false
+
+# Server Configuration
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  timeout: 30
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+
+# Monitoring Targets
+monitors:
+  # System Metrics
+  system:
+    enabled: true
+    interval: 60  # seconds
+    timeout: 30
+    metrics:
+      - cpu_usage
+      - memory_usage
+      - disk_usage
+      - network_io
+      - process_count
+
+  # Network Metrics
+  network:
+    enabled: true
+    interval: 60
+    timeout: 30
+    metrics:
+      - bandwidth_usage
+      - packet_loss
+      - latency
+      - throughput
+      - jitter
+    interfaces:
+      - eth0
+      - eth1
+
+  # Ping/Connectivity
+  connectivity:
+    enabled: true
+    interval: 30
+    timeout: 5
+    targets:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+
+  # DNS Resolution
+  dns:
+    enabled: true
+    interval: 300
+    timeout: 10
+    targets:
+      - google.com
+      - cloudflare.com
+      - github.com
+
+# Alert Rules
+alerts:
+  enabled: true
+  rules:
+    - name: "High CPU Usage"
+      condition: "cpu_usage > 80"
+      severity: "warning"
+      duration: 300  # seconds
+      actions:
+        - email
+        - slack
+
+    - name: "High Memory Usage"
+      condition: "memory_usage > 85"
+      severity: "critical"
+      duration: 180
+      actions:
+        - email
+        - slack
+
+    - name: "Network Interface Down"
+      condition: "interface_status == 'down'"
+      severity: "critical"
+      duration: 0
+      actions:
+        - email
+        - slack
+
+    - name: "High Packet Loss"
+      condition: "packet_loss > 5"
+      severity: "warning"
+      duration: 300
+      actions:
+        - email
+
+    - name: "High Latency"
+      condition: "latency > 150"
+      severity: "warning"
+      duration: 600
+      actions:
+        - email
+
+    - name: "DNS Resolution Failure"
+      condition: "dns_status == 'failed'"
+      severity: "critical"
+      duration: 0
+      actions:
+        - email
+        - slack
+
+# Notification Channels
+notifications:
+  email:
+    enabled: true
+    smtp_server: "localhost"
+    smtp_port: 587
+    smtp_user: "alerts@isp-monitor.local"
+    smtp_password: ""
+    from_address: "alerts@isp-monitor.local"
+    recipients:
+      - "admin@example.com"
+      - "ops@example.com"
+
+  slack:
+    enabled: false
+    webhook_url: ""
+    channel: "#network-alerts"
+    username: "ISP Monitor"
+
+  telegram:
+    enabled: false
+    bot_token: ""
+    chat_id: ""
+
+# Data Storage
+storage:
+  type: "influxdb"
+  influxdb:
+    url: "http://influxdb:8086"
+    org: "isp-monitoring"
+    bucket: "network-metrics"
+    token: ""
+  
+  retention:
+    raw_metrics: "30d"
+    aggregated_metrics: "90d"
+    alerts: "365d"
+
+# Caching
+cache:
+  type: "redis"
+  redis:
+    host: "redis"
+    port: 6379
+    db: 0
+    password: ""
+  ttl: 300  # seconds
+
+# Logging
+logging:
+  level: "INFO"
+  format: "json"
+  output:
+    - type: "file"
+      path: "logs/monitoring.log"
+      rotation: "daily"
+      retention: 30
+    - type: "console"
+      format: "text"

@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # InfluxDB for time-series metrics
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: isp-influxdb
+    environment:
+      INFLUXDB_DB: isp-monitoring
+      INFLUXDB_ADMIN_USER: admin
+      INFLUXDB_ADMIN_PASSWORD: adminpassword
+      INFLUXDB_BOLT_PATH: /var/lib/influxdb2
+      INFLUXDB_ENGINE_PATH: /var/lib/influxdb2/engine
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: isp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Monitoring application
+  monitor:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: isp-monitor
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_ORG=isp-monitoring
+      - INFLUXDB_BUCKET=network-metrics
+      - INFLUXDB_TOKEN=isp-monitoring-token
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVER_PORT=8000
+      - SERVER_HOST=0.0.0.0
+    ports:
+      - "8000:8000"
+    depends_on:
+      influxdb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - monitoring
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+volumes:
+  influxdb-data:
+  redis-data:
+
+networks:
+  monitoring:
+    driver: bridge
